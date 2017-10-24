@@ -31,7 +31,6 @@ public class AsgardTribes extends JavaPlugin implements Listener{
 	        File file = new File(getDataFolder(),"config.yml");
 	        if(!file.exists()){
 	            getLogger().info("config.yml not found, creating! Please unload and load this plugin again!");
-	    		/*
 	            getConfig().set("settings.prefix","&8[&6Tribes&8]&r ");
 	    		getConfig().set("tribes.Default.description","Default tribe. If you see this, then your old config probably fucked up.");
 	    		getConfig().set("tribes.Default.level",1);
@@ -39,7 +38,6 @@ public class AsgardTribes extends JavaPlugin implements Listener{
 	    		getConfig().set("tribes.Default.balance",0);
 	    		getConfig().set("users.default.name","Default");
 	    		getConfig().set("users.default.tribe","Default");
-	    	    */
 	            saveDefaultConfig();
 	        }
 	        else{
