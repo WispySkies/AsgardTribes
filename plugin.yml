@@ -1,0 +1,12 @@
+name: AsgardTribes
+main: com.fivefourdee.asgardtribes.AsgardTribes
+version: 1.0.0
+author: 54D
+depend: [Vault]
+commands:
+   tribe:
+       description: Main command.
+       usage: /tribe
+   tribes:
+       description: Alias.
+       usage: /tribes
