@@ -36,7 +36,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         "Default tribe. If you see this, then your old config probably fucked up.");
                 getConfig().set("tribes.Default.level", 1);
                 getConfig().set("tribes.Default.type", "[]");
-                getConfig().set("tribes.Default.balance", 0);
+                getConfig().set("tribes.Default.balance", 0.00);
                 getConfig().set("users.default.name", "Default");
                 getConfig().set("users.default.tribe", "Default");
                 getConfig().set("users.default.rank", "Chief");
@@ -87,18 +87,24 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                 sendMsg(senderP, " &cVersion&4 " + pdfile.getVersion());
                 sendMsg(senderP, " &cCoded by&4 54D");
             } else {
-                if (args[0].equalsIgnoreCase("create")) {
+                if (args[0].equalsIgnoreCase("bal")||args[0].equalsIgnoreCase("balance")) {
+                    if (!inTribe(sender)) {
+                        sendMsg(senderP, prefix + "&4You are not in a tribe!");
+                    } else {
+                        sendMsg(senderP, prefix + "&7Tribe currently has &a$"+getConfig().getDouble("tribes."+tribe+".balance")+"&7.");
+                    }
+                } else if (args[0].equalsIgnoreCase("create")) {
                     if (args.length != 3) {
                         sendMsg(senderP, prefix + "&4Invalid arguments. Usage: /tribe create <name> <type>");
                         sendMsg(senderP, prefix + "&7Types:");
-                        sendMsg(senderP, " &4Aesir&8 - &6desc1");
-                        sendMsg(senderP, " &4Vanir&8 - &6desc2");
+                        sendMsg(senderP, " &6Aesir&8 - &7desc1");
+                        sendMsg(senderP, " &6Vanir&8 - &7desc2");
                     } else if (!args[2].equals("Aesir") && !args[2].equals("Vanir")) {
                         sendMsg(senderP, 
                                 prefix + "&4Invalid arguments. Usage: /tribe create <name> <type>");
                         sendMsg(senderP, prefix + "&7Types:");
-                        sendMsg(senderP, " &4Aesir&8 - &6desc1");
-                        sendMsg(senderP, " &4Vanir&8 - &6desc2");
+                        sendMsg(senderP, " &6Aesir&8 - &7desc1");
+                        sendMsg(senderP, " &6Vanir&8 - &7desc2");
                     } else if (inTribe(sender)) {
                         sendMsg(senderP, prefix + "&4You are already in a tribe!");
                     } else {
@@ -106,19 +112,20 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                                 "Default description.");
                         getConfig().set("tribes." + args[1] + ".level", 1);
                         getConfig().set("tribes." + args[1] + ".type", args[2]);
-                        getConfig().set("tribes." + args[1] + ".balance", 0);
+                        getConfig().set("tribes." + args[1] + ".balance", 0.00);
                         getConfig().set("users." + senderID + ".name", senderP.getName());
                         getConfig().set("users." + senderID + ".tribe", args[1]);
                         getConfig().set("users." + senderID + ".rank", "Chief");
                         saveConfig();
-                        sendMsg(senderP, prefix + "&7Created a new &4"+args[2]+"&7 tribe called &4"+args[1]+"&7.");
+                        sendMsg(senderP, prefix + "&7Created a new &6"+args[2]+"&7 tribe called &4"+args[1]+"&7.");
                     }
                 } else if (args[0].equalsIgnoreCase("help")) {
                     sendMsg(senderP, prefix + "&7Available commands:");
-                    sendMsg(senderP, " &4/tribe create&8 - &6Crates a new tribe.");
-                    sendMsg(senderP, " &4/tribe help&8 - &6Shows this help dialogue.");
-                    sendMsg(senderP, " &4/tribe reload&8 - &6Reloads configuration.");
-                    sendMsg(senderP, " &4/tribe type&8 - &6Sets the type of your tribe.");
+                    sendMsg(senderP, " &4/tribe bal|balance&8 - &7Creates a new tribe.");
+                    sendMsg(senderP, " &4/tribe create&8 - &7Creates a new tribe.");
+                    sendMsg(senderP, " &4/tribe help&8 - &7Shows this help dialogue.");
+                    sendMsg(senderP, " &4/tribe reload&8 - &7Reloads configuration.");
+                    sendMsg(senderP, " &4/tribe type&8 - &7Sets the type of your tribe.");
                 } else if (args[0].equalsIgnoreCase("reload")) {
                     if (sender.hasPermission("tribe.reload")) {
                         reloadConfig();
@@ -130,19 +137,19 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                     if (args.length != 2) {
                         sendMsg(senderP, prefix + "&4Invalid arguments. Usage: /tribe type <type>");
                         sendMsg(senderP, prefix + "&7Types:");
-                        sendMsg(senderP, " &4Aesir&8 - &6desc1");
-                        sendMsg(senderP, " &4Vanir&8 - &6desc2");
+                        sendMsg(senderP, " &6Aesir&8 - &7desc1");
+                        sendMsg(senderP, " &6Vanir&8 - &7desc2");
                     } else if (!args[1].equals("Aesir") && !args[1].equals("Vanir")) {
                         sendMsg(senderP, 
                                 prefix + "&4Invalid arguments. Usage: /tribe type <type>");
                         sendMsg(senderP, prefix + "&7Types:");
-                        sendMsg(senderP, " &4Aesir&8 - &6desc1");
-                        sendMsg(senderP, " &4Vanir&8 - &6desc2");
+                        sendMsg(senderP, " &6Aesir&8 - &7desc1");
+                        sendMsg(senderP, " &6Vanir&8 - &7desc2");
                     } else {
                         if (inTribe(sender)) {
                             getConfig().set("tribes." + tribe + ".type", args[1]);
                             saveConfig();
-                            sendMsg(senderP, prefix + "&7Tribe type set to &4" + args[1] + "&7.");
+                            sendMsg(senderP, prefix + "&7Tribe type set to &6" + args[1] + "&7.");
                         } else {
                             sendMsg(senderP, prefix + "&4You are not in a tribe!");
                         }
