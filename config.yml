@@ -1,0 +1,13 @@
+settings:
+  prefix: '&8[&6Tribes&8]&r '
+tribes:
+  Default:
+    description: Default tribe. If you see this, then your old config probably fucked up.
+    level: 1
+    type: Aesir
+    balance: 0.0
+users:
+  default:
+    name: Default
+    tribe: Default
+    rank: Chief

@@ -30,16 +30,18 @@ public class AsgardTribes extends JavaPlugin implements Listener {
             }
             File file = new File(getDataFolder(), "config.yml");
             if (!file.exists()) {
-                getLogger().info("config.yml not found, creating! Please unload and load this plugin again!");
+                getLogger().info("config.yml not found, creating!");
+                /*
                 getConfig().set("settings.prefix", "&8[&6Tribes&8]&r ");
                 getConfig().set("tribes.Default.description",
                         "Default tribe. If you see this, then your old config probably fucked up.");
                 getConfig().set("tribes.Default.level", 1);
-                getConfig().set("tribes.Default.type", "[]");
-                getConfig().set("tribes.Default.balance", 0.00);
+                getConfig().set("tribes.Default.type", "Aesir");
+                getConfig().set("tribes.Default.balance", 0.0);
                 getConfig().set("users.default.name", "Default");
                 getConfig().set("users.default.tribe", "Default");
                 getConfig().set("users.default.rank", "Chief");
+                */
                 saveDefaultConfig();
             } else {
                 getLogger().info("config.yml found, loading!");
@@ -93,7 +95,8 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                     } else {
                         sendMsg(senderP, prefix + "&7Tribe currently has &a$"+getConfig().getDouble("tribes."+tribe+".balance")+"&7.");
                     }
-                } else if (args[0].equalsIgnoreCase("create")) {
+                }
+                if (args[0].equalsIgnoreCase("create")) {
                     if (args.length != 3) {
                         sendMsg(senderP, prefix + "&4Invalid arguments. Usage: /tribe create <name> <type>");
                         sendMsg(senderP, prefix + "&7Types:");
@@ -112,7 +115,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                                 "Default description.");
                         getConfig().set("tribes." + args[1] + ".level", 1);
                         getConfig().set("tribes." + args[1] + ".type", args[2]);
-                        getConfig().set("tribes." + args[1] + ".balance", 0.00);
+                        getConfig().set("tribes." + args[1] + ".balance", 0);
                         getConfig().set("users." + senderID + ".name", senderP.getName());
                         getConfig().set("users." + senderID + ".tribe", args[1]);
                         getConfig().set("users." + senderID + ".rank", "Chief");
