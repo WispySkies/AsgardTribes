@@ -145,7 +145,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP, prefix + "&7Types:");
                         sendMsg(senderP, " &6Aesir&8 - &7"+typesDesc("Aesir"));
                         sendMsg(senderP, " &6Vanir&8 - &7"+typesDesc("Vanir"));
-                    } else if (!args[2].equals("Aesir") && !args[2].equals("Vanir")) {
+                    } else if (!args[2].equalsIgnoreCase("Aesir") && !args[2].equalsIgnoreCase("Vanir")) {
                         sendMsg(senderP, 
                                 prefix + "&4Invalid arguments. Usage: /tribe create <name> <type>");
                         sendMsg(senderP, prefix + "&7Types:");
@@ -231,10 +231,8 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                     } else {
                         Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
                         for(String s:uuids){
-                            if(getConfig().getString("users."+s+".tribe").equalsIgnoreCase(tribe)) {
-                                if(server.getPlayer(getConfig().getString("users."+s+".name"))!=null) {
-                                    sendMsg(senderP, prefix + "&7Tribe &c"+tribe+"&7 was disbanded.");
-                                }
+                            if(getConfig().getString("users."+s+".tribe").equalsIgnoreCase(tribe)&&server.getPlayer(s)!=null) {
+                                sendMsg(server.getPlayer(s), prefix + "&7Tribe &c"+tribe+"&7 was disbanded.");
                                 getConfig().set("users."+s, null);
                             }
                         }
@@ -250,6 +248,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                     sendMsg(senderP, " &4/tribe disband&8 - &7Disbands the entire tribe.");
                     sendMsg(senderP, " &4/tribe desc|description&8 - &7Sets tribe description.");
                     sendMsg(senderP, " &4/tribe help&8 - &7Shows this help dialogue.");
+                    sendMsg(senderP, " &4/tribe info&8 - &7Shows information of a tribe.");
                     sendMsg(senderP, " &4/tribe leave&8 - &7Leaves current tribe.");
                     sendMsg(senderP, " &4/tribe kick&8 - &7Kicks player from tribe.");
                     sendMsg(senderP, " &4/tribe reload&8 - &7Reloads configuration.");
@@ -261,9 +260,15 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                     } else if(getConfig().getString("users."+senderID+".rank").equals("Chief")) {
                         sendMsg(senderP, prefix + "&4You are the Chief of the tribe!");
                     } else {
+                        sendMsg(senderP, prefix + "&7Left &c"+tribe+"&7 tribe.");
+                        Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
+                        for(String s:uuids){
+                            if(getConfig().getString("users."+s+".tribe").equalsIgnoreCase(tribe)&&server.getPlayer(s)!=null) {
+                                sendMsg(server.getPlayer(s), prefix + "&c"+senderP.toString()+"&7 has left the tribe.");
+                            }
+                        }
                         getConfig().set("users."+senderID,null);
                         saveConfig();
-                        sendMsg(senderP, prefix + "&7Left "+tribe+"&7 tribe.");
                     }
                 }else if (args[0].equalsIgnoreCase("kick")) {
                     if (args.length<2) {
