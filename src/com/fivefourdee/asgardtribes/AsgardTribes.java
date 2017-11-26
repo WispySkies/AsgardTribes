@@ -4,10 +4,10 @@ import net.md_5.bungee.api.ChatColor;
 import net.milkbowl.vault.economy.Economy;
 
 import java.io.File;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -45,17 +45,6 @@ public class AsgardTribes extends JavaPlugin implements Listener {
             File file = new File(getDataFolder(), "config.yml");
             if (!file.exists()) {
                 getLogger().info("config.yml not found, creating!");
-                /*
-                getConfig().set("settings.prefix", "&8[&6Tribes&8]&r ");
-                getConfig().set("tribes.Default.description",
-                        "Default tribe. If you see this, then your old config probably fucked up.");
-                getConfig().set("tribes.Default.level", 1);
-                getConfig().set("tribes.Default.type", "Aesir");
-                getConfig().set("tribes.Default.balance", 0.0);
-                getConfig().set("users.default.name", "Default");
-                getConfig().set("users.default.tribe", "Default");
-                getConfig().set("users.default.rank", "Chief");
-                */
                 saveDefaultConfig();
             } else {
                 getLogger().info("config.yml found, loading!");
@@ -228,23 +217,32 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                     if (args.length<2) {
                         sendMsg(senderP, prefix + "&4Invalid arguments. Usage: /tribe kick <player>");
                     } else {
-                        OfflinePlayer kickee = getOfflinePlayer("users."+args[0]);
+                        String userName="nouserexistsasthisname",userID="nouserexistsasthisname";
+                        Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
+                        for(String s:uuids){
+                            if(getConfig().getString("users."+s+".name").equalsIgnoreCase(args[1])) {
+                                userName = getConfig().getString("users."+s+".name");
+                                userID = s.toString().replaceAll("-","");
+                                break;
+                            }
+                        }
                         if (!inTribe(senderP)) {
                             sendMsg(senderP, prefix + "&4You are not in a tribe!");
-                        }else if (!getConfig().contains("users."+kickee.getUniqueId())){
+                        }else if (userName.equals("nouserexistsasthisname")){
                             sendMsg(senderP, prefix + "&4User does not exist.");
-                        } else if (!getConfig().getString("users."+kickee.getUniqueId()+".tribe").equals("users."+server.getPlayer(senderP.toString()).getUniqueId()+".tribe")) {
-                            sendMsg(senderP, prefix + "&4User is not in your tribe!");
-                        } else if(!getConfig().getString("users."+server.getPlayer(senderP.toString()).getUniqueId()+".rank").equals("Chief")) {
+                        } else if(!getConfig().getString("users."+senderP.getUniqueId().toString().replaceAll("-","")+".rank").equals("Chief")) {
                             sendMsg(senderP, prefix + "&4You must be the Chief of the tribe to do so!");
+                        } else if (!getConfig().getString("users."+userID+".tribe").equals(getConfig().getString("users."+senderP.getUniqueId().toString().replaceAll("-","")+".tribe"))) {
+                            sendMsg(senderP, prefix + "&4User is not in your tribe!");
                         } else if(args[1].equalsIgnoreCase(sender.getName())){
                             sendMsg(senderP, prefix + "&4You cannot kick yourself!");
                         } else {
-                            getConfig().set("users."+kickee.getUniqueId(), null);
+                            getConfig().set("users."+userID, null);
                             sendMsg(senderP, prefix + "&7Kicked &6"+args[1]+"&7 from tribe.");
                             if(server.getPlayer(args[1])!=null) {
-                                sendMsg(server.getPlayer(args[1]), prefix + "&4You have been kicked from &c"+getConfig().getString("users."+senderP+".tribe")+"&4!");
+                                sendMsg(server.getPlayer(args[1]), prefix + "&4You have been kicked from &c"+getConfig().getString("users."+senderP.getUniqueId().toString().replaceAll("-","")+".tribe")+"&4!");
                             }
+                            saveConfig();
                         }
                     }
                 } else if (args[0].equalsIgnoreCase("reload")) {
