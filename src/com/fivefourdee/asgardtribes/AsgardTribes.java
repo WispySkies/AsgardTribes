@@ -4,8 +4,11 @@ import net.md_5.bungee.api.ChatColor;
 import net.milkbowl.vault.economy.Economy;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
@@ -136,6 +139,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP, prefix + "&7Tribe currently has &a$"+getConfig().getDouble("tribes."+tribe+".balance")+"&7.");
                     }
                 } else if (args[0].equalsIgnoreCase("create")) {
+                    Pattern p = Pattern.compile(".*\\W+.*");
                     if (args.length != 3) {
                         sendMsg(senderP, prefix + "&4Invalid arguments. Usage: /tribe create <name> <type>");
                         sendMsg(senderP, prefix + "&7Types:");
@@ -149,6 +153,8 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP, " &6Vanir&8 - &7"+typesDesc("Vanir"));
                     } else if (inTribe(sender)) {
                         sendMsg(senderP, prefix + "&4You are already in a tribe!");
+                    } else if(p.matcher(args[1]).find()) {
+                        sendMsg(senderP, prefix + "&4Tribe name must be alphanumeric!");
                     } else {
                         getConfig().set("tribes." + args[1] + ".description",
                                 "Default description.");
@@ -190,7 +196,22 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             sendMsg(senderP, prefix + "&4Invalid arguments. Usage: /tribe deposit <amount>");
                         }
                     }
-                } else if (args[0].equalsIgnoreCase("desc")||args[0].equalsIgnoreCase("description")) {
+                } else if(args[0].equalsIgnoreCase("chat")||args[0].equalsIgnoreCase("c")) {
+                    if (!inTribe(senderP)) {
+                        sendMsg(senderP, prefix + "&4You are not in a tribe!");
+                    }else {
+                        args[0]="";
+                        String msg = arrayToString(args);
+                        List<Player> players = new ArrayList<Player>();
+                        server.getOnlinePlayers().stream().forEach(p->players.add(p));
+                        for(Player p:players) {
+                            String uuid = p.getUniqueId().toString().replaceAll("-","");
+                            if(getConfig().contains("users."+uuid)&&getConfig().getString("users."+uuid+".tribe").equals(tribe)) {
+                                sendMsg(p, "&6<"+tribe+"> &c"+sender.getName()+"&6:&c"+msg);
+                            }
+                        }
+                    }
+                }else if (args[0].equalsIgnoreCase("desc")||args[0].equalsIgnoreCase("description")) {
                     if(args.length<2) {
                         sendMsg(senderP, prefix + "&4Invalid arguments. Usage: /tribe description <string>");
                     } else if (!inTribe(senderP)) {
@@ -202,18 +223,49 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         saveConfig();
                         sendMsg(senderP, prefix + "&7Tribe description set to:&6"+temp+"&7.");
                     }
+                } else if (args[0].equalsIgnoreCase("disband")){
+                    if (!inTribe(senderP)) {
+                        sendMsg(senderP, prefix + "&4You are not in a tribe!");
+                    } else if(!getConfig().getString("users."+senderID+".rank").equals("Chief")) {
+                        sendMsg(senderP, prefix + "&4You must be the Chief of the tribe to do so!");
+                    } else {
+                        Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
+                        for(String s:uuids){
+                            if(getConfig().getString("users."+s+".tribe").equalsIgnoreCase(tribe)) {
+                                if(server.getPlayer(getConfig().getString("users."+s+".name"))!=null) {
+                                    sendMsg(senderP, prefix + "&7Tribe &c"+tribe+"&7 was disbanded.");
+                                }
+                                getConfig().set("users."+s, null);
+                            }
+                        }
+                        getConfig().set("tribes."+tribe,null);
+                        saveConfig();
+                    }
                 } else if (args[0].equalsIgnoreCase("help")) {
                     sendMsg(senderP, prefix + "&7Available commands:");
                     sendMsg(senderP, " &4/tribe bal|balance&8 - &7Creates a new tribe.");
+                    sendMsg(senderP, " &4/tribe c|chat&8 - &7Talks in tribe chat.");
                     sendMsg(senderP, " &4/tribe create&8 - &7Creates a new tribe.");
                     sendMsg(senderP, " &4/tribe deposit&8 - &7Deposits money into the tribe bank.");
+                    sendMsg(senderP, " &4/tribe disband&8 - &7Disbands the entire tribe.");
                     sendMsg(senderP, " &4/tribe desc|description&8 - &7Sets tribe description.");
                     sendMsg(senderP, " &4/tribe help&8 - &7Shows this help dialogue.");
+                    sendMsg(senderP, " &4/tribe leave&8 - &7Leaves current tribe.");
                     sendMsg(senderP, " &4/tribe kick&8 - &7Kicks player from tribe.");
                     sendMsg(senderP, " &4/tribe reload&8 - &7Reloads configuration.");
                     sendMsg(senderP, " &4/tribe type&8 - &7Sets the type of your tribe.");
                     sendMsg(senderP, " &4/tribe withdraw&8 - &7Withdraws money from the tribe bank.");
-                } else if (args[0].equalsIgnoreCase("kick")) {
+                } else if (args[0].equalsIgnoreCase("leave")) {
+                    if (!inTribe(senderP)) {
+                        sendMsg(senderP, prefix + "&4You are not in a tribe!");
+                    } else if(getConfig().getString("users."+senderID+".rank").equals("Chief")) {
+                        sendMsg(senderP, prefix + "&4You are the Chief of the tribe!");
+                    } else {
+                        getConfig().set("users."+senderID,null);
+                        saveConfig();
+                        sendMsg(senderP, prefix + "&7Left "+tribe+"&7 tribe.");
+                    }
+                }else if (args[0].equalsIgnoreCase("kick")) {
                     if (args.length<2) {
                         sendMsg(senderP, prefix + "&4Invalid arguments. Usage: /tribe kick <player>");
                     } else {
