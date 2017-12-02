@@ -1,13 +1,16 @@
 settings:
-  prefix: '&8[&6Tribes&8]&r '
+  prefix: "&8[&6Tribes&8]&r "
+  prices:
+    1: 1
+    2: 2
 tribes:
   Default:
-    description: Default tribe. If you see this, then your old config probably fucked up.
+    description: "Default tribe. If you see this, then your old config probably fucked up."
     level: 1
     type: Aesir
     balance: 0.0
 users:
-  default:
+  defaultdefaultdefaultdefaultdefa:
     name: Default
     tribe: Default
     rank: Chief
