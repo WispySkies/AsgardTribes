@@ -150,7 +150,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                 sendMsg(senderP, prefix + "&c&lAsgard&6&lTribes");
                 sendMsg(senderP, " &cRunning on &4" + server.getServerName() + ":" + server.getName());
                 sendMsg(senderP, " &cVersion&4 " + pdfile.getVersion());
-                sendMsg(senderP, " &cCoded by&4 54D&c with help from &4Qubd&c, &4XMen&c, &4Arpolix, &4CRAVENSCRAFT");
+                sendMsg(senderP, " &cCoded by&4 54D&c with help from &4Qubd&c, &4XMen&c, &4Arpolix&c, &4CRAVENSCRAFT");
             } else {
                 if(args[0].equalsIgnoreCase("accept")) {
                     if(args.length<2) {
@@ -221,6 +221,8 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP, " &6Vanir&8 - &7" + typesDesc("Vanir"));
                     } else if (inTribe(sender)) {
                         sendMsg(senderP, prefix + "&4You are already in a tribe!");
+                    } else if (economy.getBalance(server.getOfflinePlayer(senderP.getUniqueId()))<getConfig().getDouble("settings.cost")) {
+                        sendMsg(senderP, prefix + "&4You do not have enough money! It costs $"+getConfig().getDouble("settings.cost")+" to create a new Tribe.");
                     } else if (p.matcher(args[1]).find()) {
                         sendMsg(senderP, prefix + "&4Tribe name must be alphanumeric!");
                     } else {
@@ -232,6 +234,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         getConfig().set("users." + senderID + ".tribe", args[1]);
                         getConfig().set("users." + senderID + ".rank", "Chief");
                         saveConfig();
+                        economy.withdrawPlayer(senderP,getConfig().getDouble("settings.cost"));
                         sendMsg(senderP,
                                 prefix + "&7Created a new &6" + args[2] + "&7 tribe called &c" + args[1] + "&7.");
                     }
@@ -330,23 +333,23 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                     }
                 } else if (args[0].equalsIgnoreCase("help")) {
                     sendMsg(senderP, prefix + "&7Available commands:");
-                    sendMsg(senderP, " &4/tribe accept&8 - &7Accepts a tribe invitation.");
-                    sendMsg(senderP, " &4/tribe bal|balance&8 - &7Creates a new tribe.");
-                    sendMsg(senderP, " &4/tribe c|chat&8 - &7Talks in tribe chat.");
-                    sendMsg(senderP, " &4/tribe create&8 - &7Creates a new tribe.");
-                    sendMsg(senderP, " &4/tribe deny&8 - &7Denies a tribe invitation.");
-                    sendMsg(senderP, " &4/tribe deposit&8 - &7Deposits money into the tribe bank.");
-                    sendMsg(senderP, " &4/tribe disband&8 - &7Disbands the entire tribe.");
-                    sendMsg(senderP, " &4/tribe desc|description&8 - &7Sets tribe description.");
-                    sendMsg(senderP, " &4/tribe help&8 - &7Shows this help dialogue.");
-                    sendMsg(senderP, " &4/tribe info&8 - &7Shows information of a tribe.");
-                    sendMsg(senderP, " &4/tribe invite&8 - &7Invites player to tribe.");
-                    sendMsg(senderP, " &4/tribe leave&8 - &7Leaves current tribe.");
-                    sendMsg(senderP, " &4/tribe kick&8 - &7Kicks player from tribe.");
-                    sendMsg(senderP, " &4/tribe rankup&8 - &7Ranks up tribe.");
-                    sendMsg(senderP, " &4/tribe reload&8 - &7Reloads configuration.");
-                    sendMsg(senderP, " &4/tribe type&8 - &7Sets the type of your tribe.");
-                    sendMsg(senderP, " &4/tribe withdraw&8 - &7Withdraws money from the tribe bank.");
+                    sendMsg(senderP, " &c/tribe accept &6<tribe>&8 - &7Accepts a tribe invitation.");
+                    sendMsg(senderP, " &c/tribe bal|balance&8 - &7Displays tribe balance.");
+                    sendMsg(senderP, " &c/tribe c|chat &6<message>&8 - &7Talks in tribe chat.");
+                    sendMsg(senderP, " &c/tribe create&8 &6<name> <type> - &7Creates a new tribe.");
+                    sendMsg(senderP, " &c/tribe deny &6<tribe>&8 - &7Denies a tribe invitation.");
+                    sendMsg(senderP, " &c/tribe deposit &6<amount>&8 - &7Deposits money into the tribe bank.");
+                    sendMsg(senderP, " &c/tribe disband&8 - &7Disbands the entire tribe.");
+                    sendMsg(senderP, " &c/tribe desc|description &6[desc]&8 - &7Sets tribe description.");
+                    sendMsg(senderP, " &c/tribe help&8 - &7Shows this help dialogue.");
+                    sendMsg(senderP, " &c/tribe info &6[tribe]&8 - &7Shows information of a tribe.");
+                    sendMsg(senderP, " &c/tribe invite &6<player>&8 - &7Invites player to tribe.");
+                    sendMsg(senderP, " &c/tribe leave&8 - &7Leaves current tribe.");
+                    sendMsg(senderP, " &c/tribe kick &6<player>&8 - &7Kicks player from tribe.");
+                    sendMsg(senderP, " &c/tribe rankup&8 - &7Ranks up tribe.");
+//                    sendMsg(senderP, " &c/tribe reload&8 - &7Reloads configuration.");
+                    sendMsg(senderP, " &c/tribe type &6<type>&8 - &7Sets the type of your tribe.");
+                    sendMsg(senderP, " &c/tribe withdraw &6<amount>&8 - &7Withdraws money from the tribe bank.");
                 } else if (args[0].equalsIgnoreCase("info")) {
                     if (args.length > 2) {
                         if(getConfig().contains(args[2])) {
@@ -357,8 +360,8 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                                     " &7Level: &e" + getConfig().getInt("tribes." + args[2] + ".level"));
                             sendMsg(senderP, " &7Description: &c"
                                     + getConfig().getString("tribes." + args[2] + ".description"));
-                            sendMsg(senderP, " &7Members:");
                             Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
+                            sendMsg(senderP, " &7Members (&c"+uuids.size()+"/"+getConfig().getInt("settings.members."+getConfig().getInt("tribes." + args[2] + ".level"))+"&7):");
                             for (String u : uuids) {
                                 StringBuilder sb = new StringBuilder();
                                 sb.append("   ");
@@ -386,8 +389,8 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                                     + getConfig().getDouble("tribes." + getTribe(senderP) + ".balance"));
                             sendMsg(senderP, " &7Description: &c"
                                     + getConfig().getString("tribes." + getTribe(senderP) + ".description"));
-                            sendMsg(senderP, " &7Members:");
                             Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
+                            sendMsg(senderP, " &7Members (&c"+uuids.size()+"/"+getConfig().getInt("settings.members."+getConfig().getInt("tribes." + args[2] + ".level"))+"&7):");
                             for (String u : uuids) {
                                 StringBuilder sb = new StringBuilder();
                                 sb.append("   ");
@@ -402,6 +405,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         }
                     }
                 }else if(args[0].equalsIgnoreCase("invite")) {
+                    Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
                     if(args.length<2) {
                         sendMsg(senderP,prefix+"&4Invalid arguments. Usage: /tribe invite <player>"); 
                     }else if(args[1].equalsIgnoreCase(senderP.getName())){
@@ -410,7 +414,9 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP,prefix+"&4You are not in a tribe!");
                     }else if(!getConfig().getString("users."+senderID+".rank").equals("Chief")) {
                         sendMsg(senderP,prefix+"&4You must be the Chief of the tribe to do so!");
-                    }else if(server.getPlayer(args[1])!=null){
+                    }else if(uuids.size()==getConfig().getInt("settings.members."+getConfig().getInt("tribes." + args[2] + ".level"))) {
+                        sendMsg(senderP,prefix+"&4Tribe is full! Rankup for more spaces.");
+                    } else if(server.getPlayer(args[1])!=null){
                         Player p = server.getPlayer(args[1]);
                         if(invited.containsKey(p)) {
                             sendMsg(senderP,prefix+"&4You have sent this user an invitation already!");

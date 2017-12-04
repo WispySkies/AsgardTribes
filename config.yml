@@ -1,8 +1,16 @@
 settings:
+  ## Prefix to show in plugin messages.
   prefix: "&8[&6Tribes&8]&r "
+  ## Cost to create a new tribe.
+  cost: 30
+  ## Price per rankup.
   prices:
     1: 1
     2: 2
+  ## Amount of members limit for each tribe level.
+  members:
+    1: 10
+    2: 30
 tribes:
   Default:
     description: "Default tribe. If you see this, then your old config probably fucked up."
