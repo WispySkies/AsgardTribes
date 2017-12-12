@@ -1,24 +1,26 @@
 settings:
-  ## Prefix to show in plugin messages.
+  # Prefix to show in plugin messages.
   prefix: "&8[&6Tribes&8]&r "
-  ## Cost to create a new tribe.
+  # Cost to create a new tribe.
   cost: 30
-  ## Price per rankup.
+  # Price per rankup.
   prices:
     1: 1
     2: 2
-  ## Amount of members limit for each tribe level.
+  # Amount of members limit for each tribe level.
   members:
     1: 10
     2: 30
+    3: 60
+  # Cooldown of tribe sword skill for each tribe level in seconds.
+  swordcd:
+    1: 120
+    2: 90
+    3: 60
 tribes:
   Default:
     description: "Default tribe. If you see this, then your old config probably fucked up."
     level: 1
     type: Aesir
     balance: 0.0
-users:
-  defaultdefaultdefaultdefaultdefa:
-    name: Default
-    tribe: Default
-    rank: Chief
+users: {}

@@ -2,9 +2,11 @@ package com.fivefourdee.asgardtribes;
 
 import net.md_5.bungee.api.ChatColor;
 import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.permission.Permission;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,25 +16,39 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Fireball;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.ItemFlag;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.util.Vector;
 
 public class AsgardTribes extends JavaPlugin implements Listener {
     
     Logger logger = this.getLogger();
     private Economy economy;
+    private Permission perms;
     Server server = getServer();
     String prefix = this.getConfig().getString("settings.prefix");
     FileConfiguration config = this.getConfig();
     PluginDescriptionFile pdfile = this.getDescription();
-    Map<Player,String> invited = new LinkedHashMap<Player, String>();
+    Map<Player,String> invited = new LinkedHashMap<Player,String>();
+    Map<Player,Boolean> swordCd = new HashMap<Player,Boolean>();
     
     private boolean setupEconomy() {
         logger = getLogger();
@@ -43,6 +59,12 @@ public class AsgardTribes extends JavaPlugin implements Listener {
             logger.info("Vault found!");
         }
         return economy != null;
+    }
+    
+    private boolean setupPermissions() {
+        RegisteredServiceProvider<Permission> rsp = getServer().getServicesManager().getRegistration(Permission.class);
+        perms = rsp.getProvider();
+        return perms != null;
     }
     
     private void createConfig() {
@@ -135,11 +157,70 @@ public class AsgardTribes extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(this, this);
         createConfig();
         setupEconomy();
+        setupPermissions();
     }
     
     /*
      * @Override public void onDisable(){ saveConfig(); }
      */
+    
+    @EventHandler
+    public void onFireballExplode(EntityExplodeEvent event) {
+        if (event.getEntity() instanceof Fireball) {
+            if(event.getEntity().hasMetadata("tribeskill")){
+                event.setCancelled(true);
+            }
+        }
+    }
+    
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        Player p = event.getPlayer();
+        if(inTribe(p)) {
+            ItemStack sword = new ItemStack(Material.GOLD_SWORD,1);
+            ItemMeta im = sword.getItemMeta();
+            im.setDisplayName(ChatColor.RED+""+ChatColor.BOLD+"Tribe Sword");
+            ArrayList<String> swordLore = new ArrayList<String>();
+            swordLore.add(ChatColor.GRAY+"Bonding X");
+            swordLore.add(ChatColor.RED+"A magical blade that releases powerful");
+            swordLore.add(ChatColor.RED+"magic upon usage through drawing the");
+            swordLore.add(ChatColor.RED+"power of present souls in the tribe.");
+            im.setLore(swordLore);
+            sword.addUnsafeEnchantment(Enchantment.DURABILITY,10);
+            im.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            sword.setItemMeta(im);
+            int level = getConfig().getInt("tribes."+getTribe(p)+".level");
+            int cooldown = getConfig().getInt("settings.swordcd."+level);
+            if(p.getInventory().getItemInMainHand().equals(sword)&&(event.getAction()==Action.RIGHT_CLICK_AIR||event.getAction()==Action.RIGHT_CLICK_BLOCK)) {
+                if(swordCd.getOrDefault(p,false)==false) {
+                    swordCd.put(p,true);
+                    Runnable task = new Runnable() {
+                        public void run() {
+                            swordCd.remove(p);
+                            if(server.getOnlinePlayers().contains(p)) {
+                                sendMsg(p,prefix+"&7Your Tribe Sword skill is refreshed!");
+                            }
+                        }
+                    };
+                    server.getScheduler().runTaskLater(this,task,cooldown*20L);
+                    if(getConfig().getString("tribes."+getTribe(p)+".type").equals("Aesir")) {
+                        Vector lookat = p.getLocation().getDirection().add(new Vector(0.0D,-0.1D,0.0D)).normalize();
+                        Fireball fireball = p.getWorld().spawn(p.getLocation().add(new Vector(0.0D, 3.0D, 0.0D)),Fireball.class);
+                        fireball.setVelocity(lookat);
+                        fireball.setIsIncendiary(false);
+                        fireball.setMetadata("tribeskill",new FixedMetadataValue(this,"yes"));
+                    }else {
+                        perms.playerAdd(p.getWorld().getName(),server.getOfflinePlayer(p.getUniqueId()),"essentials.lightning");
+                        server.dispatchCommand(server.getConsoleSender(),"sudo "+p.getName()+" smite");
+                        perms.playerRemove(p.getWorld().getName(),server.getOfflinePlayer(p.getUniqueId()),"essentials.lightning");
+                        }
+                    sendMsg(p,prefix+"&7Released Tribe Sword skill!");
+                }else {
+                    sendMsg(p,prefix+"&4Tribe sword skill on cooldown!");
+                }
+            }
+        }
+    }
     
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         Player senderP = (Player) sender;
@@ -147,6 +228,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
         
         if (cmd.getName().equalsIgnoreCase("tribe") || cmd.getName().equalsIgnoreCase("tribes")) {
             if (args.length < 1) {
+                sendMsg(senderP, prefix + "Usage: /tribe help");
                 sendMsg(senderP, prefix + "&c&lAsgard&6&lTribes");
                 sendMsg(senderP, " &cRunning on &4" + server.getServerName() + ":" + server.getName());
                 sendMsg(senderP, " &cVersion&4 " + pdfile.getVersion());
@@ -361,7 +443,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             sendMsg(senderP, " &7Description: &c"
                                     + getConfig().getString("tribes." + args[2] + ".description"));
                             Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
-                            sendMsg(senderP, " &7Members (&c"+uuids.size()+"/"+getConfig().getInt("settings.members."+getConfig().getInt("tribes." + args[2] + ".level"))+"&7):");
+                            sendMsg(senderP, " &7Members (&c"+uuids.size()+"/"+getConfig().getInt("settings.members."+getConfig().getInt("tribes." + args[1] + ".level"))+"&7):");
                             for (String u : uuids) {
                                 StringBuilder sb = new StringBuilder();
                                 sb.append("   ");
@@ -390,7 +472,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             sendMsg(senderP, " &7Description: &c"
                                     + getConfig().getString("tribes." + getTribe(senderP) + ".description"));
                             Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
-                            sendMsg(senderP, " &7Members (&c"+uuids.size()+"/"+getConfig().getInt("settings.members."+getConfig().getInt("tribes." + args[2] + ".level"))+"&7):");
+                            sendMsg(senderP, " &7Members (&c"+uuids.size()+"/"+getConfig().getInt("settings.members."+getConfig().getInt("tribes." + getTribe(sender) + ".level"))+"&7):");
                             for (String u : uuids) {
                                 StringBuilder sb = new StringBuilder();
                                 sb.append("   ");
@@ -414,7 +496,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP,prefix+"&4You are not in a tribe!");
                     }else if(!getConfig().getString("users."+senderID+".rank").equals("Chief")) {
                         sendMsg(senderP,prefix+"&4You must be the Chief of the tribe to do so!");
-                    }else if(uuids.size()==getConfig().getInt("settings.members."+getConfig().getInt("tribes." + args[2] + ".level"))) {
+                    }else if(uuids.size()==getConfig().getInt("settings.members."+getConfig().getInt("tribes." + args[1] + ".level"))) {
                         sendMsg(senderP,prefix+"&4Tribe is full! Rankup for more spaces.");
                     } else if(server.getPlayer(args[1])!=null){
                         Player p = server.getPlayer(args[1]);
@@ -544,6 +626,27 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP, prefix + "&7Successfully reloaded.");
                     } else {
                         sendMsg(senderP, "&8&l[&4&lGuard&8&l]&4 Insufficient permissions.");
+                    }
+                }else if(args[0].equalsIgnoreCase("sword")) {
+                    if(!inTribe(senderP)) {
+                        sendMsg(senderP, prefix + "&4You are not in a tribe!");
+                    }else if(senderP.getInventory().firstEmpty()==-1){
+                        sendMsg(senderP, prefix + "&4Inventory full!");
+                    }else {
+                        ItemStack sword = new ItemStack(Material.GOLD_SWORD,1);
+                        ItemMeta im = sword.getItemMeta();
+                        im.setDisplayName(ChatColor.RED+""+ChatColor.BOLD+"Tribe Sword");
+                        ArrayList<String> swordLore = new ArrayList<String>();
+                        swordLore.add(ChatColor.GRAY+"Bonding X");
+                        swordLore.add(ChatColor.RED+"A magical blade that releases powerful");
+                        swordLore.add(ChatColor.RED+"magic upon usage through drawing the");
+                        swordLore.add(ChatColor.RED+"power of present souls in the tribe.");
+                        im.setLore(swordLore);
+                        sword.addUnsafeEnchantment(Enchantment.DURABILITY,10);
+                        im.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                        sword.setItemMeta(im);
+                        senderP.getInventory().addItem(sword);
+                        sendMsg(senderP, prefix + "&7Received Tribe Sword.");
                     }
                 } else if (args[0].equalsIgnoreCase("type")) {
                     if (args.length != 2) {
