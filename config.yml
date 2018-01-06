@@ -5,22 +5,24 @@ settings:
   cost: 30
   # Price per rankup.
   prices:
-    1: 1
-    2: 2
-  # Amount of members limit for each tribe level.
-  members:
-    1: 10
-    2: 30
-    3: 60
+    '1': 1
+    '2': 2
   # Cooldown of tribe sword skill for each tribe level in seconds.
   swordcd:
-    1: 120
-    2: 90
-    3: 60
+    '1': 120
+    '2': 90
+    '3': 60
+  # Amount of members limit for each tribe level.
+  members:
+    '1': 10
+    '2': 30
+    '3': 60
 tribes:
   Default:
     description: "Default tribe. If you see this, then your old config probably fucked up."
     level: 1
     type: Aesir
     balance: 0.0
+    allies: {}
+    enemies: {}
 users: {}
