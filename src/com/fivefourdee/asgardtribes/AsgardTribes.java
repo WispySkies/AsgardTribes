@@ -95,7 +95,21 @@ public class AsgardTribes extends JavaPlugin implements Listener {
         }
     }
 
-    private String getTribe(Object in) {
+    private double getTribeBal(String tribe) {
+        return getConfig().getDouble("tribes." + tribe+ ".balance");
+    }
+    private String getTribeDescription(String tribe){
+        return getConfig().getString("tribes."+tribe+".description");
+    }
+    private int getTribeLevel(String tribe) {
+        return getConfig().getInt("tribes." + tribe+ ".level");
+    }
+    
+    private String getTribeType(String tribe) {
+        return getConfig().getString("tribes."+tribe+".type");
+    }
+
+    private String getUserTribe(Object in) {
         String tribe;
         if (in instanceof Player) {
             Player user = (Player) in;
@@ -114,16 +128,23 @@ public class AsgardTribes extends JavaPlugin implements Listener {
         return tribe;
     }
     
-    private double getTribeBal(String tribe) {
-        return getConfig().getDouble("tribes." + tribe+ ".balance");
-    }
-    
-    private int getTribeLevel(String tribe) {
-        return getConfig().getInt("tribes." + tribe+ ".level");
-    }
-    
-    private String getTribeType(String tribe) {
-        return getConfig().getString("tribes."+tribe+".type");
+    private String getUserRank(Object in){
+        String rank;
+        if(in instanceof Player){
+            Player user = (Player) in;
+            rank = getConfig().getString("users."+user.getUniqueId().toString().replaceAll("-","")+".tribe");
+        }else if(in instanceof String){
+            String uuid = ((String) in).replaceAll("-","");
+            rank = getUserRank(uuid);
+        }else{
+            rank = null;
+            try {
+                throw new Exception("Not user nor string");
+            }catch(Exception e){
+                e.printStackTrace();
+            }
+        }
+        return rank;
     }
     
     private String arrayToString(String[] array) {
@@ -201,7 +222,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
             sword.addUnsafeEnchantment(Enchantment.DURABILITY,10);
             im.addItemFlags(ItemFlag.HIDE_ENCHANTS);
             sword.setItemMeta(im);
-            int level = getTribeLevel(getTribe(p));
+            int level = getTribeLevel(getUserTribe(p));
             int cooldown = getConfig().getInt("settings.swordcd."+level);
             if(p.getInventory().getItemInMainHand().equals(sword)&&(event.getAction()==Action.RIGHT_CLICK_AIR||event.getAction()==Action.RIGHT_CLICK_BLOCK)) {
                 if(swordCd.getOrDefault(p,false)==false) {
@@ -215,7 +236,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         }
                     };
                     server.getScheduler().runTaskLater(this,task,cooldown*20L);
-                    if(getTribeType(getTribe(p)).equals("Aesir")) {
+                    if(getTribeType(getUserTribe(p)).equals("Aesir")) {
                         Vector lookat = p.getLocation().getDirection().add(new Vector(0.0D,-0.1D,0.0D)).normalize();
                         Fireball fireball = p.getWorld().spawn(p.getLocation().add(new Vector(0.0D, 3.0D, 0.0D)),Fireball.class);
                         fireball.setVelocity(lookat);
@@ -237,7 +258,9 @@ public class AsgardTribes extends JavaPlugin implements Listener {
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         Player senderP = (Player) sender;
         String senderID = senderP.getUniqueId().toString().replace("-", "");
-        
+        if(!(sender instanceof Player)) {
+            return false;
+        }
         if (cmd.getName().equalsIgnoreCase("tribe") || cmd.getName().equalsIgnoreCase("tribes")) {
             if (args.length < 1) {
                 sendMsg(senderP, prefix + "&4Usage: /tribe help");
@@ -269,7 +292,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             sb.insert(12, "-");
                             sb.insert(8, "-");
                             UUID u = UUID.fromString(sb.toString());
-                            if (server.getPlayer(u) != null&&getTribe(s).equals(args[1])) {
+                            if (server.getPlayer(u) != null&&getUserTribe(s).equals(args[1])) {
                                 sendMsg(server.getPlayer(u),
                                         prefix + "&c" + senderP.getName() + "&7 has joined the tribe.");
                             }
@@ -282,15 +305,17 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP,prefix+"&4Invalid arguments. Usage: /tribe ally <tribe>");
                     }else if(!inTribe(sender)) {
                         sendMsg(senderP, prefix + "&4You are not in a tribe!");
-                    }else if (!getConfig().getString("users." + senderID + ".rank").equals("Chief")) {
+                    }else if (!getUserRank(senderID).equals("Chief")) {
                         sendMsg(senderP, prefix + "&4You must be the Chief of the tribe to do so!");
                     }else if(!getConfig().contains("tribes."+args[1])) {
                         sendMsg(senderP,prefix+"&4Tribe does not exist.");
+                    }else if(getConfig().getStringList("tribes."+getUserTribe(senderP)+".allies").contains(args[1])){
+                        sendMsg(senderP,prefix+"&4This tribe is already marked as an ally.");
                     }else {
                         ArrayList<String> allies = new ArrayList<String>();
-                        allies.addAll(getConfig().getStringList("tribes."+getTribe(senderP)+".allies"));
+                        allies.addAll(getConfig().getStringList("tribes."+getUserTribe(senderP)+".allies"));
                         allies.add(args[1]);
-                        getConfig().set("tribes."+getTribe(senderP)+".allies",allies);
+                        getConfig().set("tribes."+getUserTribe(senderP)+".allies",allies);
                         saveConfig();
                         sendMsg(senderP,prefix+"&7Allied tribe &c"+args[1]+"&7!");
                     }
@@ -299,7 +324,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP, prefix + "&4You are not in a tribe!");
                     } else {
                         sendMsg(senderP, prefix + "&7Tribe currently has &a$"
-                                + getTribeBal(getTribe(senderP)) + "&7.");
+                                + getTribeBal(getUserTribe(senderP)) + "&7.");
                     }
                 } else if (args[0].equalsIgnoreCase("chat") || args[0].equalsIgnoreCase("c")) {
                     if (!inTribe(senderP)) {
@@ -313,8 +338,8 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         server.getOnlinePlayers().stream().forEach(p -> players.add(p));
                         for (Player p : players) {
                             String uuid = p.getUniqueId().toString().replaceAll("-", "");
-                            if (getConfig().contains("users." + uuid) && getTribe(p).equals(getTribe(senderP))) {
-                                sendMsg(p, "&6<" + getTribe(senderP) + "> &c" + sender.getName() + "&6:&c" + msg);
+                            if (getConfig().contains("users." + uuid) && getUserTribe(p).equals(getUserTribe(senderP))) {
+                                sendMsg(p, "&6<" + getUserTribe(senderP) + "> &c" + sender.getName() + "&6:&c" + msg);
                             }
                         }
                     }
@@ -369,7 +394,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             sb.insert(12, "-");
                             sb.insert(8, "-");
                             UUID u = UUID.fromString(sb.toString());
-                            if(getTribe(s).equals(args[1])&&getConfig().getString("users."+s+".rank").equals("Chief")&&server.getPlayer(u)!=null) {
+                            if(getUserTribe(s).equals(args[1])&&getUserRank(s).equals("Chief")&&server.getPlayer(u)!=null) {
                                 sendMsg(server.getPlayer(u),prefix+"&c"+senderP.getName()+"&7 has denied your tribe invitation.");
                                 break;
                             }
@@ -391,17 +416,17 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         }
                         if (isDouble == true && money > 0) {
                             Double origBalP = economy.getBalance(senderP);
-                            Double origBalT = getTribeBal(getTribe(senderP));
+                            Double origBalT = getTribeBal(getUserTribe(senderP));
                             if (origBalP - money < 0) {
                                 sendMsg(senderP, prefix + "&4You do not have that much money!");
                             } else {
                                 double newBal = origBalT + money;
-                                getConfig().set("tribes." + getTribe(senderP) + ".balance", newBal);
+                                getConfig().set("tribes." + getUserTribe(senderP) + ".balance", newBal);
                                 economy.withdrawPlayer(senderP, money);
                                 saveConfig();
                                 sendMsg(senderP,
                                         prefix + "&7Deposited &a$" + money + "&7 into tribe. New tribe balance: &a$"
-                                                + getTribeBal(getTribe(senderP))
+                                                + getTribeBal(getUserTribe(senderP))
                                                 + "&7.");
                             }
                         } else {
@@ -413,19 +438,19 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP, prefix + "&4Invalid arguments. Usage: /tribe description <string>");
                     } else if (!inTribe(senderP)) {
                         sendMsg(senderP, prefix + "&4You are not in a tribe!");
-                    } else if (!getConfig().getString("users." + senderID + ".rank").equals("Chief")) {
+                    } else if (!getUserRank(senderID).equals("Chief")) {
                         sendMsg(senderP, prefix + "&4You must be the Chief of the tribe to do so!");
                     } else {
                         args[0] = "";
                         String temp = arrayToString(args);
-                        getConfig().set("tribes." + getTribe(senderP) + ".description", temp);
+                        getConfig().set("tribes." + getUserTribe(senderP) + ".description", temp);
                         saveConfig();
                         sendMsg(senderP, prefix + "&7Tribe description set to:&6" + temp + "&7.");
                     }
                 } else if (args[0].equalsIgnoreCase("disband")) {
                     if (!inTribe(senderP)) {
                         sendMsg(senderP, prefix + "&4You are not in a tribe!");
-                    } else if (!getConfig().getString("users." + senderID + ".rank").equals("Chief")) {
+                    } else if (!getUserRank(senderID).equals("Chief")) {
                         sendMsg(senderP, prefix + "&4You must be the Chief of the tribe to do so!");
                     } else {
                         Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
@@ -437,13 +462,13 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             sb.insert(12, "-");
                             sb.insert(8, "-");
                             UUID u = UUID.fromString(sb.toString());
-                            if (server.getPlayer(u) != null && getTribe(s).equalsIgnoreCase(getTribe(senderP))) {
+                            if (server.getPlayer(u) != null && getUserTribe(s).equalsIgnoreCase(getUserTribe(senderP))) {
                                 sendMsg(server.getPlayer(u),
-                                        prefix + "&7Tribe &c" + getTribe(senderP) + "&7 was disbanded.");
+                                        prefix + "&7Tribe &c" + getUserTribe(senderP) + "&7 was disbanded.");
                                 getConfig().set("users." + s.replaceAll("-", ""), null);
                             }
                         }
-                        getConfig().set("tribes." + getTribe(senderP), null);
+                        getConfig().set("tribes." + getUserTribe(senderP), null);
                         saveConfig();
                     }
                 }else if(args[0].equalsIgnoreCase("enemy")) {
@@ -451,15 +476,17 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP,prefix+"&4Invalid arguments. Usage: /tribe enemy <tribe>");
                     }else if(!inTribe(sender)) {
                         sendMsg(senderP, prefix + "&4You are not in a tribe!");
-                    }else if (!getConfig().getString("users." + senderID + ".rank").equals("Chief")) {
+                    }else if (!getUserRank(senderID).equals("Chief")) {
                         sendMsg(senderP, prefix + "&4You must be the Chief of the tribe to do so!");
                     }else if(!getConfig().contains("tribes."+args[1])) {
                         sendMsg(senderP,prefix+"&4Tribe does not exist.");
+                    }else if(getConfig().getStringList("tribes."+getUserTribe(senderP)+".enemies").contains(args[1])){
+                        sendMsg(senderP,prefix+"&4This tribe is already marked as an enemy.");
                     }else {
                         ArrayList<String> enemies = new ArrayList<String>();
-                        enemies.addAll(getConfig().getStringList("tribes."+getTribe(senderP)+".enemies"));
+                        enemies.addAll(getConfig().getStringList("tribes."+getUserTribe(senderP)+".enemies"));
                         enemies.add(args[1]);
-                        getConfig().set("tribes."+getTribe(senderP)+".enemies",enemies);
+                        getConfig().set("tribes."+getUserTribe(senderP)+".enemies",enemies);
                         saveConfig();
                         sendMsg(senderP,prefix+"&7Enemied tribe &c"+args[1]+"&7!");
                     }
@@ -493,15 +520,15 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             sendMsg(senderP,
                                     " &7Level: &e" + getTribeLevel(args[1]));
                             sendMsg(senderP, " &7Description: &c"
-                                    + getConfig().getString("tribes." + args[1] + ".description"));
+                                    + getTribeDescription(args[1]));
                             Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
                             sendMsg(senderP, " &7Members:");
                             int count=0;
                             for (String u : uuids) {
                                 StringBuilder sb = new StringBuilder();
                                 sb.append("   ");
-                                if (getTribe(u).equals(args[1])) {
-                                    if (getConfig().getString("users." + u + ".rank").equals("Chief")) {
+                                if (getUserTribe(u).equals(args[1])) {
+                                    if (getUserRank(u).equals("Chief")) {
                                         sb.append("&dChief ");
                                     }
                                     sb.append("&c" + getConfig().getString("users." + u + ".name"));
@@ -511,11 +538,11 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             }
                             sendMsg(senderP, "&7 > &c"+count+"/"+getConfig().getInt("settings.members."+getTribeLevel(args[1])));
                             ArrayList<String> allies = new ArrayList<String>();
-                            allies.addAll(getConfig().getStringList("tribes."+getTribe(args[1])+".allies"));
+                            allies.addAll(getConfig().getStringList("tribes."+getUserTribe(args[1])+".allies"));
                             String[] alliesSA = allies.toArray(new String[allies.size()]);
                             String alliesS = arrayToString(alliesSA);
                             ArrayList<String> enemies = new ArrayList<String>();
-                            enemies.addAll(getConfig().getStringList("tribes."+getTribe(senderP)+".enemies"));
+                            enemies.addAll(getConfig().getStringList("tribes."+getUserTribe(senderP)+".enemies"));
                             String[] enemiesSA = enemies.toArray(new String[enemies.size()]);
                             String enemiesS = arrayToString(enemiesSA);
                             sendMsg(senderP, " &7Allies: &c"+alliesS);
@@ -527,23 +554,23 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         if (!inTribe(sender)) {
                             sendMsg(senderP, prefix + "&4You are not in a tribe!");
                         } else {
-                            sendMsg(senderP, prefix + "&c&l" + getTribe(senderP));
+                            sendMsg(senderP, prefix + "&c&l" + getUserTribe(senderP));
                             sendMsg(senderP,
-                                    " &7Type: &6" + getTribeType(getTribe(senderP)));
+                                    " &7Type: &6" + getTribeType(getUserTribe(senderP)));
                             sendMsg(senderP,
-                                    " &7Level: &e" + getTribeLevel(getTribe(senderP)));
+                                    " &7Level: &e" + getTribeLevel(getUserTribe(senderP)));
                             sendMsg(senderP, " &7Balance: &a$"
-                                    + getTribeBal(getTribe(senderP)));
+                                    + getTribeBal(getUserTribe(senderP)));
                             sendMsg(senderP, " &7Description: &c"
-                                    + getConfig().getString("tribes." + getTribe(senderP) + ".description"));
+                                    + getTribeDescription(getUserTribe(senderP)));
                             Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
                             sendMsg(senderP, " &7Members:");
                             int count=0;
                             for (String u : uuids) {
                                 StringBuilder sb = new StringBuilder();
                                 sb.append("   ");
-                                if (getTribe(u).equals(getTribe(senderP))) {
-                                    if (getConfig().getString("users." + u + ".rank").equals("Chief")) {
+                                if (getUserTribe(u).equals(getUserTribe(senderP))) {
+                                    if (getUserRank(u).equals("Chief")) {
                                         sb.append("&dChief ");
                                     }
                                     sb.append("&c" + getConfig().getString("users." + u + ".name"));
@@ -551,13 +578,13 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                                     count = count+1;
                                 }
                             }
-                            sendMsg(senderP, "&7 > &c"+count+"/"+getConfig().getInt("settings.members."+getTribeLevel(getTribe(senderP))));
+                            sendMsg(senderP, "&7 > &c"+count+"/"+getConfig().getInt("settings.members."+getTribeLevel(getUserTribe(senderP))));
                             ArrayList<String> allies = new ArrayList<String>();
-                            allies.addAll(getConfig().getStringList("tribes."+getTribe(senderP)+".allies"));
+                            allies.addAll(getConfig().getStringList("tribes."+getUserTribe(senderP)+".allies"));
                             String[] alliesSA = allies.toArray(new String[allies.size()]);
                             String alliesS = arrayToString(alliesSA);
                             ArrayList<String> enemies = new ArrayList<String>();
-                            enemies.addAll(getConfig().getStringList("tribes."+getTribe(senderP)+".enemies"));
+                            enemies.addAll(getConfig().getStringList("tribes."+getUserTribe(senderP)+".enemies"));
                             String[] enemiesSA = enemies.toArray(new String[enemies.size()]);
                             String enemiesS = arrayToString(enemiesSA);
                             sendMsg(senderP, " &7Allies: &c"+alliesS);
@@ -572,7 +599,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP,prefix+"&4You cannot invite yourself!");
                     }else if(!inTribe(senderP)) {
                         sendMsg(senderP,prefix+"&4You are not in a tribe!");
-                    }else if(!getConfig().getString("users."+senderID+".rank").equals("Chief")) {
+                    }else if(!getUserRank(senderID).equals("Chief")) {
                         sendMsg(senderP,prefix+"&4You must be the Chief of the tribe to do so!");
                     }else if(uuids.size()==getConfig().getInt("settings.members."+getTribeLevel(args[1]))) {
                         sendMsg(senderP,prefix+"&4Tribe is full! Rankup for more spaces.");
@@ -581,7 +608,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         if(invited.containsKey(p)) {
                             sendMsg(senderP,prefix+"&4You have sent this user an invitation already!");
                         }else {
-                            invited.put(p, getTribe(senderP));
+                            invited.put(p, getUserTribe(senderP));
                             String pName = p.getName();
                             Runnable task = new Runnable() {
                                 public void run() {
@@ -595,7 +622,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                                 }
                             };
                             server.getScheduler().runTaskLater(this,task,1200L);
-                            String tribe = getTribe(senderP);
+                            String tribe = getUserTribe(senderP);
                             sendMsg(senderP,prefix+"&7You have invited&c "+pName+"&7 to &c"+tribe+"&7.");
                             sendMsg(p,prefix+"&7You have been invited to &c"+tribe+"&7.");
                             sendMsg(p,prefix+"&7Do &c/tribe <accept|deny> <tribe>&7. This invitation expires in 60 seconds.");
@@ -620,9 +647,9 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             sendMsg(senderP, prefix + "&4You are not in a tribe!");
                         } else if (userName.equals("nouserexistsasthisname")) {
                             sendMsg(senderP, prefix + "&4User does not exist.");
-                        } else if (!getConfig().getString("users." + senderID + ".rank").equals("Chief")) {
+                        } else if (!getUserRank(senderID).equals("Chief")) {
                             sendMsg(senderP, prefix + "&4You must be the Chief of the tribe to do so!");
-                        } else if (!getTribe(userID).equals(getTribe(senderP))) {
+                        } else if (!getUserTribe(userID).equals(getUserTribe(senderP))) {
                             sendMsg(senderP, prefix + "&4User is not in your tribe!");
                         } else if (args[1].equalsIgnoreCase(sender.getName())) {
                             sendMsg(senderP, prefix + "&4You cannot kick yourself!");
@@ -630,7 +657,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             sendMsg(senderP, prefix + "&7Kicked &6" + args[1] + "&7 from tribe.");
                             if (server.getPlayer(args[1]) != null) {
                                 sendMsg(server.getPlayer(args[1]),
-                                        prefix + "&7You have been kicked from &c" + getTribe(senderP) + "&7!");
+                                        prefix + "&7You have been kicked from &c" + getUserTribe(senderP) + "&7!");
                             }
                             for (String s : uuids) {
                                 StringBuilder sb = new StringBuilder();
@@ -640,7 +667,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                                 sb.insert(12, "-");
                                 sb.insert(8, "-");
                                 UUID u = UUID.fromString(sb.toString());
-                                if (server.getPlayer(u) != null&&getTribe(s).equals(getTribe(args[1]))) {
+                                if (server.getPlayer(u) != null&&getUserTribe(s).equals(getUserTribe(args[1]))) {
                                     sendMsg(server.getPlayer(u),
                                             prefix + "&c" + senderP.getName() + "&7 has been kicked from the tribe.");
                                 }
@@ -652,11 +679,11 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                 } else if (args[0].equalsIgnoreCase("leave")) {
                     if (!inTribe(senderP)) {
                         sendMsg(senderP, prefix + "&4You are not in a tribe!");
-                    } else if (getConfig().getString("users." + senderID + ".rank").equals("Chief")) {
+                    } else if (getUserRank(senderID).equals("Chief")) {
                         sendMsg(senderP, prefix + "&4You are the Chief of the tribe!");
                     } else {
-                        String oldTribe = getTribe(senderP);
-                        sendMsg(senderP, prefix + "&7Left &c" + getTribe(senderP) + "&7 tribe.");
+                        String oldTribe = getUserTribe(senderP);
+                        sendMsg(senderP, prefix + "&7Left &c" + getUserTribe(senderP) + "&7 tribe.");
                         getConfig().set("users." + senderID, null);
                         saveConfig();
                         Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
@@ -668,7 +695,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             sb.insert(12, "-");
                             sb.insert(8, "-");
                             UUID u = UUID.fromString(sb.toString());
-                            if (server.getPlayer(u) != null&&getTribe(s).equalsIgnoreCase(oldTribe)) {
+                            if (server.getPlayer(u) != null&&getUserTribe(s).equalsIgnoreCase(oldTribe)) {
                                 sendMsg(server.getPlayer(u),
                                         prefix + "&c" + senderP.getName() + "&7 has left the tribe.");
                             }
@@ -677,13 +704,13 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                 } else if (args[0].equalsIgnoreCase("rankup")) {
                     if(!inTribe(senderP)) {
                         sendMsg(senderP, prefix + "&4You are not in a tribe!");
-                    } else if (!getConfig().getString("users." + senderID + ".rank").equals("Chief")) {
+                    } else if (!getUserRank(senderID).equals("Chief")) {
                         sendMsg(senderP, prefix + "&4You must be the Chief of the tribe to do so!");
-                    } else if (!getConfig().contains("settings.prices."+getTribeLevel(getTribe(senderP)))){
+                    } else if (!getConfig().contains("settings.prices."+getTribeLevel(getUserTribe(senderP)))){
                         sendMsg(senderP, prefix+"&4Tribe is at max rank!");
                     }else {
-                        int level = getTribeLevel(getTribe(senderP));
-                        double bal = getTribeBal(getTribe(senderP));
+                        int level = getTribeLevel(getUserTribe(senderP));
+                        double bal = getTribeBal(getUserTribe(senderP));
                         double req = getConfig().getInt("settings.prices."+level);
                         if(bal<req) {
                             sendMsg(senderP, prefix+"&4Tribe does not have enough money to rankup! Needed: &a$"+req);
@@ -691,8 +718,8 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                                     + bal + "&7.");
                         }else {
                             sendMsg(senderP, prefix+"&7Tribe leveled up to level &e"+(level+1)+"&7!");
-                            getConfig().set("tribes."+getTribe(senderP)+".level", level+1);
-                            getConfig().set("tribes."+getTribe(senderP)+".balance", bal-req);
+                            getConfig().set("tribes."+getUserTribe(senderP)+".level", level+1);
+                            getConfig().set("tribes."+getUserTribe(senderP)+".balance", bal-req);
                             sendMsg(senderP, prefix + "&7Tribe currently has &a$"
                                     + bal + "&7.");
                             saveConfig();
@@ -739,7 +766,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP, " &6Vanir&8 - &7" + typesDesc("Vanir"));
                     } else {
                         if (inTribe(sender)) {
-                            getConfig().set("tribes." + getTribe(senderP) + ".type", args[1]);
+                            getConfig().set("tribes." + getUserTribe(senderP) + ".type", args[1]);
                             saveConfig();
                             sendMsg(senderP, prefix + "&7Tribe type set to &6" + args[1] + "&7.");
                         } else {
@@ -760,13 +787,13 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             isDouble = false;
                         }
                         if (isDouble == true && money > 0) {
-                            Double origBal = getTribeBal(getTribe(senderP));
+                            Double origBal = getTribeBal(getUserTribe(senderP));
                             if (origBal - money < 0) {
                                 sendMsg(senderP, prefix + "&4Tribe does not have that much money! Tribe balance: &a$"
                                         + origBal);
                             } else {
                                 double newBal = origBal - money;
-                                getConfig().set("tribes." + getTribe(senderP) + ".balance", newBal);
+                                getConfig().set("tribes." + getUserTribe(senderP) + ".balance", newBal);
                                 saveConfig();
                                 economy.depositPlayer(senderP, money);
                                 sendMsg(senderP, prefix + "&7Withdrew &a$" + money + "&7 from tribe. New balance: &a$"
