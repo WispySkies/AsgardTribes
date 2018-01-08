@@ -318,6 +318,9 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                     } else if (getConfig().getStringList("tribes." + getUserTribe(senderP) + ".allies")
                             .contains(args[1])) {
                         sendMsg(senderP, prefix + "&4This tribe is already marked as an ally.");
+                    }else if (getConfig().getStringList("tribes." + getUserTribe(senderP) + ".enemies")
+                            .contains(args[1])) {
+                        sendMsg(senderP, prefix + "&4This tribe is already marked as an enemy.");
                     } else {
                         ArrayList<String> allies = new ArrayList<String>();
                         allies.addAll(getConfig().getStringList("tribes." + getUserTribe(senderP) + ".allies"));
@@ -495,6 +498,9 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                     } else if (getConfig().getStringList("tribes." + getUserTribe(senderP) + ".enemies")
                             .contains(args[1])) {
                         sendMsg(senderP, prefix + "&4This tribe is already marked as an enemy.");
+                    }else if (getConfig().getStringList("tribes." + getUserTribe(senderP) + ".allies")
+                            .contains(args[1])) {
+                        sendMsg(senderP, prefix + "&4This tribe is already marked as an ally.");
                     } else {
                         ArrayList<String> enemies = new ArrayList<String>();
                         enemies.addAll(getConfig().getStringList("tribes." + getUserTribe(senderP) + ".enemies"));
