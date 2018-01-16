@@ -27,10 +27,13 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Fireball;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -52,6 +55,8 @@ public class AsgardTribes extends JavaPlugin implements Listener {
     PluginDescriptionFile pdfile = this.getDescription();
     Map<Player, String> invited = new LinkedHashMap<Player, String>();
     Map<Player, Boolean> swordCd = new HashMap<Player, Boolean>();
+    List<Player> tcToggle = new ArrayList<Player>();
+    List<Player> spyToggle = new ArrayList<Player>();
     
     private boolean setupEconomy() {
         logger = getLogger();
@@ -221,6 +226,24 @@ public class AsgardTribes extends JavaPlugin implements Listener {
     /*
      * @Override public void onDisable(){ saveConfig(); }
      */
+    @EventHandler
+    public void onAsyncPlayerChat(AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        if(tcToggle.contains(player)) {
+            List<Player> players = new ArrayList<Player>();
+            server.getOnlinePlayers().stream().forEach(p -> players.add(p));
+            for (Player p : players) {
+                String uuid = p.getUniqueId().toString().replaceAll("-", "");
+                if (getConfig().contains("users." + uuid)
+                        && getUserTribe(p).equals(getUserTribe(player))) {
+                    sendMsg(p, "&6<" + getUserTribe(player) + "> &c" + player.getName() + "&6: &c" + event.getMessage());
+                    event.setCancelled(true);
+                }else if(p.hasPermission("tribe.spy")&&spyToggle.contains(p)) {
+                    sendMsg(p, "&8<" + getUserTribe(player) + "> &7" + player.getName() + "&8: &7" + event.getMessage());
+                }
+            }
+        }
+    }
     
     @EventHandler
     public void onFireballExplode(EntityExplodeEvent event) {
@@ -230,11 +253,35 @@ public class AsgardTribes extends JavaPlugin implements Listener {
             }
         }
     }
-    
+    @EventHandler
+    public void onCombat(EntityDamageByEntityEvent event) {
+        if ((event.getEntity() instanceof Player)) {
+            Player player = (Player) event.getEntity(), attacker;
+            if ((event.getDamager() instanceof Player)) {
+                attacker = (Player) event.getDamager();
+            }
+            else if(event.getDamager() instanceof Projectile) {
+                if(((Projectile)event.getDamager()).getShooter() instanceof Player) {
+                    attacker = (Player)((Projectile)event.getDamager()).getShooter();
+                }
+                else {
+                    return;
+                }
+            }
+            else{
+                return;
+            }
+            if(getUserTribe(player).equals(getUserTribe(attacker))) {
+                event.setCancelled(true);
+            }
+        }
+    }
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player p = event.getPlayer();
-        if (inTribe(p)) {
+        if(p.getWorld().getName().equals("p2")) {
+            return;
+        }else if (inTribe(p)) {
             ItemStack sword = new ItemStack(Material.GOLD_SWORD, 1);
             ItemMeta im = sword.getItemMeta();
             im.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "Tribe Sword");
@@ -365,7 +412,13 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                     if (!inTribe(senderP)) {
                         sendMsg(senderP, prefix + "&4You are not in a tribe!");
                     } else if (args.length < 2) {
-                        sendMsg(senderP, prefix + "&4Invalid arguments. Usage: /tribe chat <message>");
+                        if(tcToggle.contains((Player)sender)){
+                            tcToggle.remove((Player)sender);
+                            sendMsg(senderP, prefix + "&7You are now talking in global!");
+                        }else {
+                            tcToggle.add((Player)sender);
+                            sendMsg(senderP, prefix+"&7You are now talking in tribe chat!");
+                        }
                     } else {
                         args[0] = "";
                         String msg = arrayToString(args);
@@ -376,6 +429,8 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             if (getConfig().contains("users." + uuid)
                                     && getUserTribe(p).equals(getUserTribe(senderP))) {
                                 sendMsg(p, "&6<" + getUserTribe(senderP) + "> &c" + sender.getName() + "&6:&c" + msg);
+                            }else if(p.hasPermission("tribe.spy")&&spyToggle.contains(p)) {
+                                sendMsg(p, "&8<" + getUserTribe(senderP) + "> &7" + sender.getName() + "&8:&7" + msg);
                             }
                         }
                     }
@@ -493,11 +548,13 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         sendMsg(senderP, prefix + "&7Tribe description set to:&6" + temp + "&7.");
                     }
                 } else if (args[0].equalsIgnoreCase("disband")) {
+                    String disband = getUserTribe(senderP);
                     if (!inTribe(senderP)) {
                         sendMsg(senderP, prefix + "&4You are not in a tribe!");
                     } else if (!getUserRank(senderID).equals("Chief")) {
                         sendMsg(senderP, prefix + "&4You must be the Chief of the tribe to do so!");
                     } else {
+                        getConfig().set("tribes." + disband, null);
                         Set<String> uuids = getConfig().getConfigurationSection("users").getKeys(false);
                         for (String s : uuids) {
                             StringBuilder sb = new StringBuilder();
@@ -507,14 +564,14 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                             sb.insert(12, "-");
                             sb.insert(8, "-");
                             UUID u = UUID.fromString(sb.toString());
-                            if (server.getPlayer(u) != null
-                                    && getUserTribe(s).equalsIgnoreCase(getUserTribe(senderP))) {
-                                sendMsg(server.getPlayer(u),
-                                        prefix + "&7Tribe &c" + getUserTribe(senderP) + "&7 was disbanded.");
+                            if(getUserTribe(s).equals(disband)) {
                                 getConfig().set("users." + s.replaceAll("-", ""), null);
-                            }
+                                if (server.getPlayer(u) != null) {
+                                    sendMsg(server.getPlayer(u),
+                                            prefix + "&7Tribe &c" + disband + "&7 was disbanded.");
+                                }
+                            }                            
                         }
-                        getConfig().set("tribes." + getUserTribe(senderP), null);
                         saveConfig();
                     }
                 } else if (args[0].equalsIgnoreCase("enemy")) {
@@ -545,7 +602,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                     sendMsg(senderP, " &c/tribe accept &6<tribe>&8 - &7Accepts a tribe invitation.");
                     sendMsg(senderP, " &c/tribe ally &6<tribe>&8 - &7Marks a tribe as an ally.");
                     sendMsg(senderP, " &c/tribe bal|balance&8 - &7Displays tribe balance.");
-                    sendMsg(senderP, " &c/tribe c|chat &6<message>&8 - &7Talks in tribe chat.");
+                    sendMsg(senderP, " &c/tc|/tribe c|chat &6<message>&8 - &7Talks in tribe chat.");
                     sendMsg(senderP, " &c/tribe create&8 &6<name> <type> - &7Creates a new tribe.");
                     sendMsg(senderP, " &c/tribe deny &6<tribe>&8 - &7Denies a tribe invitation.");
                     sendMsg(senderP, " &c/tribe deposit &6<amount>&8 - &7Deposits money into the tribe bank.");
@@ -559,8 +616,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                     sendMsg(senderP, " &c/tribe kick &6<player>&8 - &7Kicks player from tribe.");
                     sendMsg(senderP, " &c/tribe neutral &6<tribe>&8 - &7Marks a tribe as neutral.");
                     sendMsg(senderP, " &c/tribe rankup&8 - &7Ranks up tribe.");
-                    // sendMsg(senderP, " &c/tribe reload&8 - &7Reloads configuration.");
-                    sendMsg(senderP, " &c/tribe sword&8 - &7Grants you a Tribe Sword.");
+                    sendMsg(senderP, " &c/tribe sword&8 - &7Gives you a Tribe Sword.");
                     sendMsg(senderP, " &c/tribe type &6<type>&8 - &7Sets the type of your tribe.");
                     sendMsg(senderP, " &c/tribe withdraw &6<amount>&8 - &7Withdraws money from the tribe bank.");
                 } else if (args[0].equalsIgnoreCase("info")) {
@@ -854,6 +910,18 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         reloadConfig();
                         sendMsg(senderP, prefix + "&7Successfully reloaded.");
                     } else {
+                        sendMsg(senderP, "&8&l[&4&lGuard&8&l]&4 Insufficient permissions.");
+                    }
+                } else if(args[0].equalsIgnoreCase("spy")) {
+                    if(sender.hasPermission("tribe.spy")) {
+                        if(spyToggle.contains(senderP)) {
+                            spyToggle.remove(senderP);
+                            sendMsg(senderP, prefix + "&7Chat spy off!");
+                        }else {
+                            spyToggle.add(senderP);
+                            sendMsg(senderP, prefix + "&7Chat spy on!");
+                        }
+                    }else {
                         sendMsg(senderP, "&8&l[&4&lGuard&8&l]&4 Insufficient permissions.");
                     }
                 } else if (args[0].equalsIgnoreCase("sword")) {
