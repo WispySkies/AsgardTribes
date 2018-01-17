@@ -10,21 +10,18 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.enchantments.Enchantment;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Fireball;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -271,7 +268,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
             else{
                 return;
             }
-            if(getUserTribe(player).equals(getUserTribe(attacker))) {
+            if(inTribe(player)&&inTribe(attacker)&&getUserTribe(player).equals(getUserTribe(attacker))) {
                 event.setCancelled(true);
             }
         }
@@ -279,9 +276,7 @@ public class AsgardTribes extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player p = event.getPlayer();
-        if(p.getWorld().getName().equals("p2")) {
-            return;
-        }else if (inTribe(p)) {
+        if (inTribe(p)) {
             ItemStack sword = new ItemStack(Material.GOLD_SWORD, 1);
             ItemMeta im = sword.getItemMeta();
             im.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "Tribe Sword");
@@ -298,7 +293,10 @@ public class AsgardTribes extends JavaPlugin implements Listener {
             int cooldown = getConfig().getInt("settings.swordcd." + level);
             if (p.getInventory().getItemInMainHand().equals(sword)
                     && (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK)) {
-                if (swordCd.getOrDefault(p, false) == false) {
+                if(p.getWorld().getName().equals("p2")) {
+                    sendMsg(p,prefix+"&4You may not use tribe skill here!");
+                    return;
+                }else if (swordCd.getOrDefault(p, false) == false) {
                     swordCd.put(p, true);
                     Runnable task = new Runnable() {
                         public void run() {
@@ -311,19 +309,22 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                     server.getScheduler().runTaskLater(this, task, cooldown * 20L);
                     if (getTribeType(getUserTribe(p)).equals("Aesir")) {
                         Vector lookat = p.getLocation().getDirection().add(new Vector(0.0D, -0.1D, 0.0D)).normalize();
-                        Fireball fireball = p.getWorld().spawn(p.getLocation().add(new Vector(0.0D, getTribeLevel(getUserTribe(p))*1.3D, 0.0D)),
+                        Fireball fireball = p.getWorld().spawn(p.getLocation().add(new Vector(0.0D, 1.3D, 0.0D)),
                                 Fireball.class);
                         fireball.setVelocity(lookat);
                         fireball.setIsIncendiary(false);
                         fireball.setMetadata("tribeskill", new FixedMetadataValue(this, "yes"));
                     } else {
-                        final Random random = new Random();
-                        double radius = 1/getTribeLevel(getUserTribe(p));
-                        Location loc = p.getLocation().getBlock().getLocation();
-                        loc.setX(loc.getX()+(random.nextDouble()*100*radius));
-                        loc.setZ(loc.getZ()+(random.nextDouble()*100*radius));
-                        loc.getWorld().strikeLightning(loc);
-                        loc.getWorld().spawnEntity(loc,EntityType.LIGHTNING);
+//                        final Random random = new Random();
+//                        double radius = 1/getTribeLevel(getUserTribe(p));
+//                        Location loc = p.getLocation().getBlock().getLocation();
+//                        loc.setX(loc.getX()+(random.nextDouble()*100*radius));
+//                        loc.setZ(loc.getZ()+(random.nextDouble()*100*radius));
+//                        loc.getWorld().strikeLightning(loc);
+//                        loc.getWorld().spawnEntity(loc,EntityType.LIGHTNING);
+                        perms.playerAdd(p.getWorld().getName(),server.getOfflinePlayer(p.getUniqueId()),"essentials.lightning");
+                        server.dispatchCommand(server.getConsoleSender(),"sudo "+p.getName()+" smite");
+                        perms.playerRemove(p.getWorld().getName(),server.getOfflinePlayer(p.getUniqueId()),"essentials.lightning");
                     }
                     sendMsg(p, prefix + "&7Released Tribe Sword skill!");
                 } else {
