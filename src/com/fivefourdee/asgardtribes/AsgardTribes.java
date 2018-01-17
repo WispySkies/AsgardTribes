@@ -10,18 +10,22 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Server;
+import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Fireball;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -43,6 +47,7 @@ import org.bukkit.util.Vector;
 
 public class AsgardTribes extends JavaPlugin implements Listener {
     
+    static AsgardTribes instance;
     Logger logger = this.getLogger();
     private Economy economy;
     private Permission perms;
@@ -54,6 +59,10 @@ public class AsgardTribes extends JavaPlugin implements Listener {
     Map<Player, Boolean> swordCd = new HashMap<Player, Boolean>();
     List<Player> tcToggle = new ArrayList<Player>();
     List<Player> spyToggle = new ArrayList<Player>();
+    
+    public static AsgardTribes getInstance() {
+        return instance;
+    }
     
     private boolean setupEconomy() {
         logger = getLogger();
@@ -67,8 +76,8 @@ public class AsgardTribes extends JavaPlugin implements Listener {
     }
     
     private boolean setupPermissions() {
-        RegisteredServiceProvider<Permission> rsp = getServer().getServicesManager().getRegistration(Permission.class);
-        perms = rsp.getProvider();
+        RegisteredServiceProvider<Permission> permissionsProvider = getServer().getServicesManager().getRegistration(Permission.class);
+        perms = permissionsProvider.getProvider();
         return perms != null;
     }
     
@@ -136,41 +145,23 @@ public class AsgardTribes extends JavaPlugin implements Listener {
         return getConfig().getString("tribes." + tribe + ".type");
     }
     
-    private String getUserTribe(Object in) {
-        String tribe;
-        if (in instanceof Player) {
-            Player user = (Player) in;
-            tribe = getConfig().getString("users." + user.getUniqueId().toString().replaceAll("-", "") + ".tribe");
-        } else if (in instanceof String) {
-            String uuid = ((String) in).replaceAll("-", "");
-            tribe = getConfig().getString("users." + uuid + ".tribe");
-        } else {
-            tribe = null;
-            try {
-                throw new Exception("Not user nor string");
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
+    private String getUserTribe(Player player) {
+        String tribe = getConfig().getString("users." + player.getUniqueId().toString().replaceAll("-", "") + ".tribe");
         return tribe;
     }
     
-    private String getUserRank(Object in) {
-        String rank;
-        if (in instanceof Player) {
-            Player user = (Player) in;
-            rank = getConfig().getString("users." + user.getUniqueId().toString().replaceAll("-", "") + ".rank");
-        } else if (in instanceof String) {
-            String uuid = ((String) in).replaceAll("-", "");
-            rank = getConfig().getString("users." + uuid + ".rank");
-        } else {
-            rank = null;
-            try {
-                throw new Exception("Not user nor string");
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
+    private String getUserTribe(String uuid) {
+        String tribe = getConfig().getString("users." + uuid.replaceAll("-", "") + ".tribe");
+        return tribe;
+    }
+    
+    private String getUserRank(Player player) {
+        String rank = getConfig().getString("users." + player.getUniqueId().toString().replaceAll("-", "") + ".rank");
+        return rank;
+    }
+    
+    private String getUserRank(String uuid) {
+        String rank = getConfig().getString("users." + uuid.replaceAll("-", "") + ".rank");
         return rank;
     }
     
@@ -218,11 +209,8 @@ public class AsgardTribes extends JavaPlugin implements Listener {
         createConfig();
         setupEconomy();
         setupPermissions();
+        instance = this;
     }
-    
-    /*
-     * @Override public void onDisable(){ saveConfig(); }
-     */
     @EventHandler
     public void onAsyncPlayerChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
@@ -315,16 +303,17 @@ public class AsgardTribes extends JavaPlugin implements Listener {
                         fireball.setIsIncendiary(false);
                         fireball.setMetadata("tribeskill", new FixedMetadataValue(this, "yes"));
                     } else {
-//                        final Random random = new Random();
-//                        double radius = 1/getTribeLevel(getUserTribe(p));
-//                        Location loc = p.getLocation().getBlock().getLocation();
-//                        loc.setX(loc.getX()+(random.nextDouble()*100*radius));
-//                        loc.setZ(loc.getZ()+(random.nextDouble()*100*radius));
-//                        loc.getWorld().strikeLightning(loc);
-//                        loc.getWorld().spawnEntity(loc,EntityType.LIGHTNING);
-                        perms.playerAdd(p.getWorld().getName(),server.getOfflinePlayer(p.getUniqueId()),"essentials.lightning");
-                        server.dispatchCommand(server.getConsoleSender(),"sudo "+p.getName()+" smite");
-                        perms.playerRemove(p.getWorld().getName(),server.getOfflinePlayer(p.getUniqueId()),"essentials.lightning");
+                        Block target = p.getTargetBlock((Set<Material>)null, 40);
+                        Location loc = target.getLocation();
+                        final Random random = new Random();
+                        double radius = 1/getTribeLevel(getUserTribe(p));
+                        loc.setX(loc.getX()+(random.nextDouble()*5*radius));
+                        loc.setZ(loc.getZ()+(random.nextDouble()*5*radius));
+                        loc.getWorld().strikeLightning(loc);
+                        loc.getWorld().spawnEntity(loc,EntityType.LIGHTNING);
+//                        perms.playerAdd(p.getWorld().getName(),server.getOfflinePlayer(p.getUniqueId()),"essentials.lightning");
+//                        server.dispatchCommand(server.getConsoleSender(),"sudo "+p.getName()+" smite");
+//                        perms.playerRemove(p.getWorld().getName(),server.getOfflinePlayer(p.getUniqueId()),"essentials.lightning");
                     }
                     sendMsg(p, prefix + "&7Released Tribe Sword skill!");
                 } else {
